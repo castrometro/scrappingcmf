@@ -12,13 +12,125 @@ import os
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.mime.base import MIMEBase
-from email import encoders
+
+def agrupar_entidades(df):
+    # Este DataFrame agrupado almacenará los resultados finales
+    df_agrupado = pd.DataFrame(columns=['Entidad', 'Materia', 'Enlace'])
+
+    # Agrupar el DataFrame por 'Entidad' y concatenar las 'Materias' y 'Enlaces'
+    for entidad, group in df.groupby('Entidad'):
+        # Unir las materias y enlaces con un salto de línea HTML
+        materias_html = '<br>'.join(group['Materia'])
+        enlaces_html = '<br>'.join([f'<a href="{link}">Ver Enlace</a>' for link in group['Enlace'].tolist()])
+        
+        # Añadir al DataFrame agrupado
+        df_agrupado = df_agrupado.append({
+            'Entidad': entidad,
+            'Materia': materias_html,
+            'Enlace': enlaces_html
+        }, ignore_index=True)
+    
+    return df_agrupado
+
+def enviar_correo(df_agrupado, destinatario, asunto):
+    # Convertir el DataFrame a HTML
+    html_df = df_agrupado.to_html(escape=False, index=False)
+
+    # HTML personalizado para el cuerpo del correo
+    html_correo = f"""
+    <html>
+        <head>
+            <style>
+                body {{
+                    font-family: 'Arial', sans-serif;
+                    margin: 10px;
+                }}
+                table {{
+                    border-collapse: collapse;
+                    width: 100%;
+                }}
+                th, td {{
+                    border: 1px solid #dddddd;
+                    text-align: left;
+                    padding: 8px;
+                }}
+                th {{
+                    background-color: #04AA6D;
+                    color: white;
+                }}
+                .footer {{
+                    margin-top: 20px;
+                    font-size: 0.8em;
+                }}
+            </style>
+        </head>
+        <body>
+            <h2>Hechos Escenciales</h2>
+            <p>Se adjuntan los hechos escenciales más importantes del día de ayer</p>
+            <!-- Incluir el DataFrame HTML aquí -->
+            {html_df}
+            <p class="footer">Este es un correo automatizado, por favor no responda directamente.</p>
+            <!-- Imagen adjunta -->
+            <img src="https://w7.pngwing.com/pngs/510/700/png-transparent-santander-group-logo-brand-banco-santander-brazilian-festivals-text-logo-computer-wallpaper.png" alt="Imagende ejemplo" width="100">
+        </body>
+    </html>
+    """
+
+
+
+    # Crea el mensaje
+    mensaje = MIMEMultipart()
+    mensaje['From'] = 'pablo.castro_d@outlook.com'
+    mensaje['To'] = destinatario
+    mensaje['Subject'] = asunto
+
+    # Adjunta el DataFrame en HTML al correo
+    mensaje.attach(MIMEText(html_correo, 'html'))
+
+    # Configuración del servidor SMTP de Outlook
+    servidor = smtplib.SMTP('smtp.office365.com', 587)
+    servidor.starttls()
+
+    # Login al servidor
+    servidor.login('pablo.castro_d@outlook.com', 'telefono2708AB_')
+
+    # Enviar el correo
+    servidor.sendmail(mensaje['From'], mensaje['To'], mensaje.as_string())
+    servidor.quit()
+
+    print("Correo enviado exitosamente!")
+
 
 
 fecha_de_hoy = time.strftime("%d/%m/%Y")
 fecha_de_ayer = time.strftime("%d/%m/%Y", time.gmtime(time.time() - 86400))
 
+
+def actualizar_y_agregar_a_df(archivo='hechos_esenciales.xlsx'):
+    libro = openpyxl.load_workbook(archivo)
+    hoja = libro.active
+    
+    # Crear un DataFrame vacío con las columnas específicas que vamos a utilizar
+    df = pd.DataFrame(columns=['Fecha', 'Hora', 'ID', 'Entidad', 'Materia', 'Enlace'])
+    
+    for indice, fila in enumerate(hoja.iter_rows(min_row=2, values_only=True), start=2):
+        if fila[-1] == 'N':  # Si el valor en la columna "ENVIADO(Y/N)" es "N"
+            # Cambiar el valor de "N" a "Y" en la columna "ENVIADO(Y/N)"
+            hoja.cell(row=indice, column=7, value='Y')
+            
+            # Agregar la fila completa al DataFrame
+            df = df.append(pd.Series(fila[:-1], index=df.columns), ignore_index=True)
+    
+    libro.save(archivo)
+    libro.close()
+    
+    # Mantener solo las columnas "Entidad", "Materia", "Enlace" en el DataFrame
+    df = df[['Entidad', 'Materia', 'Enlace']]
+    
+    return df
+
+    
+    return df
 def crear_excel():
     if not os.path.exists('hechos_esenciales.xlsx'):
         archivo = 'hechos_esenciales.xlsx'
@@ -38,16 +150,22 @@ def añadir_a_excel(datos):
     libro = openpyxl.load_workbook(archivo)
     hoja = libro.active
     for fila in datos:
-        if fila[2] not in [celda.value for celda in hoja['C']]: #Si el ID no está en la columna C
-            fila.append('N')
-            hoja.append(fila)
-            filas_agregadas += 1
-        #else:
-            #print('....FILA EXISTENTE.....')  
+        if fila[0] == fecha_de_ayer or fila[0] == fecha_de_hoy: #Si la fecha es la de ayer o la de hoy
+            if fila[2] not in [celda.value for celda in hoja['C']]: #Si el ID no está en la columna C
+                if fila[3].lower().find('banco') == -1: #Si la entidad no es un banco
+                    if fila[3].lower().find('tanner') != -1 or fila[3].lower().find('factoring') != -1 and fila[4].lower().find('Colocación de valores en mercados internacionales y/o nacionales') != -1: #Si la entidad es Tanner o Factoring y la materia es colocación de valores
+                        fila.append('N')
+                        hoja.append(fila)
+                        filas_agregadas += 1
+                else: #Si la entidad es un banco
+                        fila.append('N')
+                        hoja.append(fila)
+                        filas_agregadas += 1
     print ('Filas agregadas: ', filas_agregadas)
     libro.save(archivo)
     libro.close()
     return 
+ 
 
 
 def accederyobtenerdf():
@@ -113,7 +231,11 @@ def accederyobtenerdf():
 def main():
     crear_excel()
     accederyobtenerdf()
+    df = actualizar_y_agregar_a_df()
+    df_agrupado = agrupar_entidades(df)
+    print(df)
     print('....EXCEL ACTUALIZADO.....')
+    enviar_correo(df_agrupado,'Emiliano.muratore@santander.cl', 'Boletín de Hechos Escenciales')
 
         
 
