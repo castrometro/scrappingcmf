@@ -55,7 +55,7 @@ def enviar_correo(df_agrupado, destinatario, asunto):
                     padding: 8px;
                 }}
                 th {{
-                    background-color: #04AA6D;
+                    background-color: #aa0404;
                     color: white;
                 }}
                 .footer {{
@@ -71,7 +71,7 @@ def enviar_correo(df_agrupado, destinatario, asunto):
             {html_df}
             <p class="footer">Este es un correo automatizado, por favor no responda directamente.</p>
             <!-- Imagen adjunta -->
-            <img src="https://w7.pngwing.com/pngs/510/700/png-transparent-santander-group-logo-brand-banco-santander-brazilian-festivals-text-logo-computer-wallpaper.png" alt="Imagende ejemplo" width="100">
+            <img src="https://gkpb.com.br/wp-content/uploads/2018/03/novo-logo-santander-fundo-vermelho.jpg" alt="Imagende ejemplo" width="200">
         </body>
     </html>
     """
@@ -235,7 +235,7 @@ def main():
     df_agrupado = agrupar_entidades(df)
     print(df)
     print('....EXCEL ACTUALIZADO.....')
-    enviar_correo(df_agrupado,'Emiliano.muratore@santander.cl', 'Boletín de Hechos Escenciales')
+    enviar_correo(df_agrupado,'pablo.castro_d@outlook.com', 'Boletín de Hechos Escenciales')
 
         
 
