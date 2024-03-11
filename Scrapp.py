@@ -104,6 +104,7 @@ def enviar_correo(df_agrupado, destinatario, asunto):
 
 fecha_de_hoy = time.strftime("%d/%m/%Y")
 fecha_de_ayer = time.strftime("%d/%m/%Y", time.gmtime(time.time() - 86400))
+ultimo_viernes = time.strftime("%d/%m/%Y", time.gmtime(time.time() - 86400*3))
 
 
 def actualizar_y_agregar_a_df(archivo='hechos_esenciales.xlsx'):
@@ -129,8 +130,7 @@ def actualizar_y_agregar_a_df(archivo='hechos_esenciales.xlsx'):
     
     return df
 
-    
-    return df
+
 def crear_excel():
     if not os.path.exists('hechos_esenciales.xlsx'):
         archivo = 'hechos_esenciales.xlsx'
@@ -150,17 +150,32 @@ def añadir_a_excel(datos):
     libro = openpyxl.load_workbook(archivo)
     hoja = libro.active
     for fila in datos:
-        if fila[0] == fecha_de_ayer or fila[0] == fecha_de_hoy: #Si la fecha es la de ayer o la de hoy
+        if fila[0] == fecha_de_ayer or fila[0] == ultimo_viernes: #Si la fecha es la de ayer o la del último viernes
             if fila[2] not in [celda.value for celda in hoja['C']]: #Si el ID no está en la columna C
                 if fila[3].lower().find('banco') == -1: #Si la entidad no es un banco
-                    if fila[3].lower().find('tanner') != -1 or fila[3].lower().find('factoring') != -1 and fila[4].lower().find('Colocación de valores en mercados internacionales y/o nacionales') != -1: #Si la entidad es Tanner o Factoring y la materia es colocación de valores
+                    if (fila[3].lower().find('tanner') != -1 or fila[3].lower().find('factoring') != -1) and fila[4] == ('Colocación de valores en mercados internacionales y/o nacionales'): #Si la entidad es Tanner o Factoring y la materia es colocación de valores
+                        print('Agregando fila:', fila)
                         fila.append('N')
                         hoja.append(fila)
                         filas_agregadas += 1
+                    else:
+                        print('La entidad', fila[3], 'no cumple con los requisitos.')
+                        print('-----------------------------')
                 else: #Si la entidad es un banco
                         fila.append('N')
                         hoja.append(fila)
                         filas_agregadas += 1
+
+            else:
+                print('El ID', fila[2], 'ya está en el archivo.')
+                print('Nombre:', fila[3])   
+                print('-----------------------------')
+        else:
+            print('La fecha no es la de ayer o la de hoy.')
+            print('ID:', fila[2])
+            print('Fecha:', fila[0])
+            print('-----------------------------')
+
     print ('Filas agregadas: ', filas_agregadas)
     libro.save(archivo)
     libro.close()
@@ -186,8 +201,8 @@ def accederyobtenerdf():
 
     #----VENTANA INICIAL--------
     #esperar a que el elemento sea clickeable, luego hacer click
-    WebDriverWait(driver,10).until(EC.element_to_be_clickable((By.CSS_SELECTOR, css_selector))).click()
-    time.sleep(2)
+   # WebDriverWait(driver,10).until(EC.element_to_be_clickable((By.CSS_SELECTOR, css_selector))).click()
+   # time.sleep(2)
 
     #----SCROL DOWN----------
     div_row_element = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "div.ntg-box-mb.animar.tab-pills-cmf")))
